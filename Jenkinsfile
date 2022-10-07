@@ -1,4 +1,4 @@
-@Library(['pipeline-toolbox','pipeline-framework'])
+@Library(['pipeline-toolbox','pipeline-framework']) _
 retriever: modernSCM(
   [
     $class: "GitSCMSource",

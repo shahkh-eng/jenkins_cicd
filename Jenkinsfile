@@ -1,10 +1,4 @@
-@Library(['pipeline-toolbox','pipeline-framework']) _
-retriever: modernSCM(
-  [
-    $class: "GitSCMSource",
-    remote: "https://github.com/kuldeepsingh99/openshift-jenkins-cicd.git"
-  ]
-)
+
 
 appName = "hello-openshift-jenkins"
 
@@ -30,7 +24,7 @@ pipeline {
       steps {
         // Turn off Git's SSL cert check, uncomment if needed
         // sh 'git config --global http.sslVerify false'
-        checkout scm
+        git url: "https://github.com/kuldeepsingh99/openshift-jenkins-cicd.git", branch: "main"
       }
     }
 

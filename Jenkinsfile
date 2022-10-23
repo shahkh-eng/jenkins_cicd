@@ -1,59 +1,65 @@
-
-
-appName = "hello-openshift-jenkins"
-
+#! /usr/bin/env groovy
 
 pipeline {
-  // Use Jenkins Maven slave
-  // Jenkins will dynamically provision this as OpenShift Pod
-  // All the stages and steps of this Pipeline will be executed on this Pod
-  // After Pipeline completes the Pod is killed so every run will have clean
-  // workspace
+
   agent {
     label 'maven'
   }
 
-  // Pipeline Stages start here
-  // Requeres at least one stage
   stages {
-
-    // Checkout source code
-    // This is required as Pipeline code is originally checkedout to
-    // Jenkins Master but this will also pull this same code to this slave
-    stage('Git Checkout') {
+    stage('Build') {
       steps {
-        // Turn off Git's SSL cert check, uncomment if needed
-        // sh 'git config --global http.sslVerify false'
-        git url: "https://github.com/kuldeepsingh99/openshift-jenkins-cicd.git", branch: "main"
+        echo 'Building..'
+
+        sh 'mvn clean package'
+        
       }
     }
-
-    // Run Maven build, skipping tests
-    stage('Build'){
+    stage('Create Container Image') {
       steps {
-        sh "mvn -B clean install -DskipTests=true"
+        echo 'Create Container Image..'
+        
+        script {
+          openshift.withCluster() {
+            openshift.withProject("auto") {
+                def buildConfigExists = openshift.selector("bc", "codelikethewind").exists()
+
+                if(!buildConfigExists){
+                    openshift.newBuild("--name=codelikethewind", "--docker-image=registry.redhat.io/jboss-eap-7/eap74-openjdk8-openshift-rhel7", "--binary")
+                }
+
+                openshift.selector("bc", "codelikethewind").startBuild("--from-file=target/openshift-jenkins-cicd.jar", "--follow")
+
+            }
+
+          }
+        }
       }
     }
-
-    // Build Container Image using the artifacts produced in previous stages
-    stage('Build Container Image'){
+    stage('Deploy') {
       steps {
-        // Copy the resulting artifacts into common directory
-        sh """
-          ls target/*
-          rm -rf oc-build && mkdir -p oc-build/deployments
-          for t in \$(echo "jar;war;ear" | tr ";" "\\n"); do
-            cp -rfv ./target/*.\$t oc-build/deployments/ 2> /dev/null || echo "No \$t files"
-          done
-        """
+        echo 'Deploying....'
+        script {
+          openshift.withCluster() {
+            openshift.withProject("auto") {
 
-        // Build container image using local Openshift cluster
-        // Giving all the artifacts to OpenShift Binary Build
-        // This places your artifacts into right location inside your S2I image
-        // if the S2I image supports it.
-        binaryBuild(pbuildConfigName: appName, buildFromPath: "oc-build")
+              def deployment = openshift.selector("dc", "codelikethewind")
+
+              if(!deployment.exists()){
+                openshift.newApp('codelikethewind', "--as-deployment-config").narrow('svc').expose()
+              }
+
+              timeout(5) { 
+                openshift.selector("dc", "codelikethewind").related('pods').untilEach(1) {
+                  return (it.object().status.phase == "Running")
+                  }
+                }
+
+            }
+
+          }
+        }
       }
     }
-
   }
 }

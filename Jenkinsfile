@@ -3,60 +3,60 @@
 pipeline {
 
   agent {
-      label 'maven'
+    label 'maven'
   }
+
   stages {
-    stage('Build App') {
+    stage('Build') {
       steps {
-        sh "mvn install"
+        echo 'Building..'
+
+        sh 'mvn clean package'
+        
       }
     }
-    stage('Create Image Builder') {
-      when {
-        expression {
-          openshift.withCluster() {
-            return !openshift.selector("bc", "sample-app-jenkins").exists();
-          }
-        }
-      }
+    stage('Create Container Image') {
       steps {
+        echo 'Create Container Image..'
+        
         script {
           openshift.withCluster() {
-            openshift.newBuild("--name=sample-app-jenkins", "--image-stream=redhat-openjdk18-openshift:1.1", "--binary")
-          }
-        }
-      }
-    }
-    stage('Build Image') {
-      steps {
-        script {
-          openshift.withCluster() {
-            openshift.selector("bc", "sample-app-jenkins").startBuild("--from-file=target/sample-app-jenkins.jar", "--wait")
-          }
-        }
-      }
-    }
-    stage('Promote to DEV') {
-      steps {
-        script {
-          openshift.withCluster() {
-            openshift.tag("sample-app-jenkins:latest", "sample-app-jenkins:dev")
+            openshift.withProject("kuldeepfr99-dev") {
+                def buildConfigExists = openshift.selector("bc", "sample-app-jenkins").exists()
+
+                if(!buildConfigExists){
+                    openshift.newBuild("--name=sample-app-jenkins", "--docker-image=registry.redhat.io/jboss-eap-7/eap74-openjdk8-openshift-rhel7", "--binary")
+                }
+
+                openshift.selector("bc", "sample-app-jenkins").startBuild("--from-file=target/openshift-jenkins-cicd.jar", "--follow")
+
+            }
+
           }
         }
       }
     }
-    stage('Create DEV') {
-      when {
-        expression {
-          openshift.withCluster() {
-            return !openshift.selector('dc', 'sample-app-jenkins').exists()
-          }
-        }
-      }
+    stage('Deploy') {
       steps {
+        echo 'Deploying....'
         script {
           openshift.withCluster() {
-            openshift.newApp("sample-app-jenkins:latest", "--name=sample-app-jenkins").narrow('svc').expose()
+            openshift.withProject("kuldeepfr99-dev") {
+
+              def deployment = openshift.selector("dc", "sample-app-jenkins")
+
+              if(!deployment.exists()){
+                openshift.newApp('sample-app-jenkins', "--as-deployment-config").narrow('svc').expose()
+              }
+
+              timeout(5) { 
+                openshift.selector("dc", "sample-app-jenkins").related('pods').untilEach(1) {
+                  return (it.object().status.phase == "Running")
+                  }
+                }
+
+            }
+
           }
         }
       }

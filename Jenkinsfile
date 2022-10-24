@@ -3,60 +3,60 @@
 pipeline {
 
   agent {
-    label 'maven'
+      label 'maven'
   }
-
   stages {
-    stage('Build') {
+    stage('Build App') {
       steps {
-        echo 'Building..'
-
-        sh 'mvn clean package'
-        
+        sh "mvn install"
       }
     }
-    stage('Create Container Image') {
+    stage('Create Image Builder') {
+      when {
+        expression {
+          openshift.withCluster() {
+            return !openshift.selector("bc", "sample-app-jenkins").exists();
+          }
+        }
+      }
       steps {
-        echo 'Create Container Image..'
-        
         script {
           openshift.withCluster() {
-            openshift.withProject("auto") {
-                def buildConfigExists = openshift.selector("bc", "sample-app-jenkins").exists()
-
-                if(!buildConfigExists){
-                    openshift.newBuild("--name=sample-app-jenkins", "--docker-image=registry.redhat.io/jboss-eap-7/eap74-openjdk8-openshift-rhel7", "--binary")
-                }
-
-                openshift.selector("bc", "sample-app-jenkins").startBuild("--from-file=target/openshift-jenkins-cicd.jar", "--follow")
-
-            }
-
+            openshift.newBuild("--name=sample-app-jenkins", "--image-stream=redhat-openjdk18-openshift:1.1", "--binary")
           }
         }
       }
     }
-    stage('Deploy') {
+    stage('Build Image') {
       steps {
-        echo 'Deploying....'
         script {
           openshift.withCluster() {
-            openshift.withProject("auto") {
-
-              def deployment = openshift.selector("dc", "sample-app-jenkins")
-
-              if(!deployment.exists()){
-                openshift.newApp('sample-app-jenkins', "--as-deployment-config").narrow('svc').expose()
-              }
-
-              timeout(5) { 
-                openshift.selector("dc", "sample-app-jenkins").related('pods').untilEach(1) {
-                  return (it.object().status.phase == "Running")
-                  }
-                }
-
-            }
-
+            openshift.selector("bc", "sample-app-jenkins").startBuild("--from-file=target/sample-app-jenkins.jar", "--wait")
+          }
+        }
+      }
+    }
+    stage('Promote to DEV') {
+      steps {
+        script {
+          openshift.withCluster() {
+            openshift.tag("sample-app-jenkins:latest", "sample-app-jenkins:dev")
+          }
+        }
+      }
+    }
+    stage('Create DEV') {
+      when {
+        expression {
+          openshift.withCluster() {
+            return !openshift.selector('dc', 'sample-app-jenkins').exists()
+          }
+        }
+      }
+      steps {
+        script {
+          openshift.withCluster() {
+            openshift.newApp("sample-app-jenkins:latest", "--name=sample-app-jenkins").narrow('svc').expose()
           }
         }
       }

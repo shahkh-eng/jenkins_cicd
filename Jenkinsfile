@@ -12,4 +12,4 @@ node('maven') {
     openshiftDeploy depCfg: 'cart'
     openshiftVerifyDeployment depCfg: 'cart', replicaCount: 1, verifyReplicaCount: true
   }
- }
+}

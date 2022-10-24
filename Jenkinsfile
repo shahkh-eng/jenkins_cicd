@@ -1,14 +1,41 @@
-node('maven') {
-  stage('Build') {
-    sh "mvn install"
-    stash name:"jar", includes:"target/cart.jar"
+pipeline {
+
+  agent any
+
+  stages {
+
+    stage('Build') {
+
+      when {
+
+        expression {
+
+          openshift.withCluster() {
+
+            return !openshift.selector('bc', 'sample-app-jenkins').exists();
+
+          }
+
+        }
+
+      }
+
+      steps {
+
+        script {
+
+          openshift.withCluster() {
+
+            openshift.newApp('redhat-openjdk18-openshift:1.1~https://github.com/kuldeepsingh99/openshift-jenkins-cicd.gitt')
+
+          }
+
+        }
+
+      }
+
+    }
+
   }
-  stage('Build Image') {
-    unstash name:"jar"
-    sh "oc start-build cart --from-file=target/cart.jar --follow"
-  }
-  stage('Deploy') {
-    openshiftDeploy depCfg: 'cart'
-    openshiftVerifyDeployment depCfg: 'cart', replicaCount: 1, verifyReplicaCount: true
-  }
+
 }

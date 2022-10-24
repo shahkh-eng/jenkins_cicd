@@ -1,6 +1,5 @@
 node('maven') {
   stage('Build') {
-    git url: "https://github.com/kuldeepsingh99/openshift-jenkins-cicd.git"
     sh "mvn package"
     stash name:"jar", includes:"target/cart.jar"
   }

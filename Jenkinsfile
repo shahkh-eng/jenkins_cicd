@@ -12,7 +12,7 @@ pipeline {
 
           openshift.withCluster() {
 
-            return !openshift.selector('bc', 'sample-app-jenkins').exists();
+            return openshift.selector('bc', 'sample-app-jenkins').exists();
 
           }
 

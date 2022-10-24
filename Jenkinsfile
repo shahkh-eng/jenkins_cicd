@@ -28,7 +28,7 @@ pipeline {
                     openshift.newBuild("--name=sample-app-jenkins", "--docker-image=registry.redhat.io/jboss-eap-7/eap74-openjdk8-openshift-rhel7", "--binary")
                 }
 
-                openshift.selector("bc", "sample-app-jenkins").startBuild("--from-file=target/openshift-jenkins-0.0.1-SNAPSHOT.jar", "--follow")
+                openshift.selector("bc", "sample-app-jenkins").startBuild("--from-file=target/openshiftjenkins-0.0.1-SNAPSHOT.jar", "--follow")
 
             }
 

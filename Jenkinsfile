@@ -1,65 +1,101 @@
-pipeline {
 
-  agent {
-
-      label 'maven'
-
-  }
-
-  stages {
-    stage('Build') {
-      steps {
-        echo 'Building..'
-
-        sh 'mvn clean package'
-        
-      }
-    }
-    stage('Create Container Image') {
-      steps {
-        echo 'Create Container Image..'
-        
-        script {
-          openshift.withCluster() {
-            openshift.withProject("kuldeepfr99-dev") {
-                def buildConfigExists = openshift.selector("bc", "sample-app-jenkins").exists()
-
-                if(!buildConfigExists){
-                    openshift.newBuild("--name=sample-app-jenkins", "--docker-image=registry.redhat.io/jboss-eap-7/eap74-openjdk8-openshift-rhel7", "--binary")
-                }
-
-                openshift.selector("bc", "sample-app-jenkins").startBuild("--from-file=target/openshiftjenkins-0.0.1-SNAPSHOT.jar", "--follow")
-
-            }
-
-          }
+      pipeline
+      {
+       agent any
+        tools
+        {
+            maven 'M3'
         }
-      }
-    }
-    stage('Deploy') {
-      steps {
-        echo 'Deploying....'
-        script {
-          openshift.withCluster() {
-            openshift.withProject("kuldeepfr99-dev") {
 
-              def deployment = openshift.selector("dc", "sample-app-jenkins")
-
-              if(!deployment.exists()){
-                openshift.newApp('sample-app-jenkins', "--as-deployment-config").narrow('svc').expose()
+        stages
+        {
+          stage('Build App')
+          {
+            steps
+             {
+              git branch: 'main', url: 'https://github.com/kuldeepsingh99/openshift-jenkins-cicd.git'
+              script {
+                  def pom = readMavenPom file: 'pom.xml'
+                  version = pom.version
               }
+              sh "mvn install"
+            }
+          }
+          
 
-              timeout(5) { 
-                openshift.selector("dc", "sample-app-jenkins").related('pods').untilEach(1) {
-                  return (it.object().status.phase == "Running")
+          stage('Create Image Builder') {
+
+            when {
+              expression {
+                openshift.withCluster() {
+                  openshift.withProject('kuldeepfr99-dev') {
+                    return !openshift.selector("bc", "sample-app-jenkins").exists();
                   }
                 }
-
+              }
             }
-
+            steps {
+              script {
+                openshift.withCluster() {
+                  openshift.withProject('kuldeepfr99-dev') {
+                    openshift.newBuild("--name=sample-app-jenkins", "--image-stream=redhat-openjdk18-openshift:latest", "--binary=true")
+                  }
+                }
+              }
+            }
           }
+          stage('Build Image') {
+            steps {
+              sh "rm -rf ocp && mkdir -p ocp/deployments"
+              sh "pwd && ls -la target "
+              sh "cp target/openshiftjenkins-0.0.1-SNAPSHOT.jar ocp/deployments"
+
+              script {
+                openshift.withCluster() {
+                  openshift.withProject('kuldeepfr99-dev') {
+                    openshift.selector("bc", "sample-app-jenkins").startBuild("--from-dir=./ocp","--follow", "--wait=true")
+                  }
+                }
+              }
+            }
+          }
+          stage('Create DEV') {
+            when {
+              expression {
+                openshift.withCluster() {
+                  openshift.withProject('kuldeepfr99-dev') {
+                    return !openshift.selector('dc', 'sample-app-jenkins').exists()
+                  }
+                }
+              }
+            }
+            steps {
+              script {
+                openshift.withCluster() {
+                  openshift.withProject('kuldeepfr99-dev') {
+                    def app = openshift.newApp("sample-app-jenkins:latest")
+                    app.narrow("svc").expose();
+
+                    
+                    
+                  }
+                }
+              }
+            }
+          }
+          stage('Deploy DEV') {
+            steps {
+              script {
+                openshift.withCluster() {
+                  openshift.withProject('kuldeepfr99-dev') {
+                    openshift.selector("dc", "sample-app-jenkins").rollout().latest();
+                  }
+                }
+              }
+            }
+          }
+          
+          
+          
         }
       }
-    }
-  }
-}

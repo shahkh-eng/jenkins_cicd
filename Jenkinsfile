@@ -74,7 +74,7 @@
               script {
                 openshift.withCluster() {
                   openshift.withProject('kuldeepfr99-dev') {
-                    def app = openshift.newApp("sample-app-jenkins-new:latest")
+                    def app = openshift.newApp("sample-app-jenkins-new")
                     app.narrow("svc").expose();
 
                     

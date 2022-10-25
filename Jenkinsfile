@@ -30,7 +30,7 @@
               expression {
                 openshift.withCluster() {
                   openshift.withProject('kuldeepfr99-dev') {
-                    return !openshift.selector("bc", "sample-app-jenkins").exists();
+                    return !openshift.selector("bc", "sample-app-jenkins-new").exists();
                   }
                 }
               }
@@ -39,7 +39,7 @@
               script {
                 openshift.withCluster() {
                   openshift.withProject('kuldeepfr99-dev') {
-                    openshift.newBuild("--name=sample-app-jenkins", "--image-stream=redhat-openjdk18-openshift:latest", "--binary=true")
+                    openshift.newBuild("--name=sample-app-jenkins-new", "--image-stream=redhat-openjdk18-openshift:latest", "--binary=true")
                   }
                 }
               }
@@ -54,7 +54,7 @@
               script {
                 openshift.withCluster() {
                   openshift.withProject('kuldeepfr99-dev') {
-                    openshift.selector("bc", "sample-app-jenkins").startBuild("--from-dir=./ocp","--follow", "--wait=true")
+                    openshift.selector("bc", "sample-app-jenkins-new").startBuild("--from-dir=./ocp","--follow", "--wait=true")
                   }
                 }
               }
@@ -65,7 +65,7 @@
               expression {
                 openshift.withCluster() {
                   openshift.withProject('kuldeepfr99-dev') {
-                    return !openshift.selector('dc', 'sample-app-jenkins').exists()
+                    return !openshift.selector('dc', 'sample-app-jenkins-new').exists()
                   }
                 }
               }
@@ -74,7 +74,7 @@
               script {
                 openshift.withCluster() {
                   openshift.withProject('kuldeepfr99-dev') {
-                    def app = openshift.newApp("sample-app-jenkins:latest")
+                    def app = openshift.newApp("sample-app-jenkins-new:latest")
                     app.narrow("svc").expose();
 
                     
@@ -89,7 +89,7 @@
               script {
                 openshift.withCluster() {
                   openshift.withProject('kuldeepfr99-dev') {
-                    openshift.selector("dc", "sample-app-jenkins").rollout().latest();
+                    openshift.selector("dc", "sample-app-jenkins-new").rollout().latest();
                   }
                 }
               }

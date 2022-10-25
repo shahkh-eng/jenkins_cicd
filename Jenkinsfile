@@ -74,29 +74,12 @@
               script {
                 openshift.withCluster() {
                   openshift.withProject('kuldeepfr99-dev') {
-                    def app = openshift.newApp("sample-app-jenkins-new")
+                    def app = openshift.newApp("sample-app-jenkins-new", "--as-deployment-config")
                     app.narrow("svc").expose();
-
-                    
-                    
                   }
                 }
               }
             }
           }
-          stage('Deploy DEV') {
-            steps {
-              script {
-                openshift.withCluster() {
-                  openshift.withProject('kuldeepfr99-dev') {
-                    openshift.selector("dc", "sample-app-jenkins-new").rollout().latest();
-                  }
-                }
-              }
-            }
-          }
-          
-          
-          
         }
       }

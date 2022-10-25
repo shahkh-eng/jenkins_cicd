@@ -1,12 +1,8 @@
-
-      pipeline
-      {
+pipeline
+    {
        agent {
-
             label 'maven'
-
-      }
-
+        }
 
         stages
         {
@@ -22,14 +18,11 @@
               sh "mvn install"
             }
           }
-          
-
           stage('Create Image Builder') {
-
             when {
               expression {
                 openshift.withCluster() {
-                  openshift.withProject('kuldeepfr99-dev') {
+                  openshift.withProject() {
                     return !openshift.selector("bc", "sample-app-jenkins-new").exists();
                   }
                 }
@@ -38,7 +31,7 @@
             steps {
               script {
                 openshift.withCluster() {
-                  openshift.withProject('kuldeepfr99-dev') {
+                  openshift.withProject() {
                     openshift.newBuild("--name=sample-app-jenkins-new", "--image-stream=kuldeepfr99-dev/openjdk18-openshift:1.14-3", "--binary=true")
                   }
                 }
@@ -53,18 +46,18 @@
 
               script {
                 openshift.withCluster() {
-                  openshift.withProject('kuldeepfr99-dev') {
+                  openshift.withProject() {
                     openshift.selector("bc", "sample-app-jenkins-new").startBuild("--from-dir=./ocp","--follow", "--wait=true")
                   }
                 }
               }
             }
           }
-          stage('Create DEV') {
+          stage('deploy') {
             when {
               expression {
                 openshift.withCluster() {
-                  openshift.withProject('kuldeepfr99-dev') {
+                  openshift.withProject() {
                     return !openshift.selector('dc', 'sample-app-jenkins-new').exists()
                   }
                 }
@@ -73,7 +66,7 @@
             steps {
               script {
                 openshift.withCluster() {
-                  openshift.withProject('kuldeepfr99-dev') {
+                  openshift.withProject() {
                     def app = openshift.newApp("sample-app-jenkins-new", "--as-deployment-config")
                     app.narrow("svc").expose();
                   }
@@ -82,4 +75,4 @@
             }
           }
         }
-      }
+    }

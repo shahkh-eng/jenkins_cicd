@@ -1,11 +1,12 @@
 
       pipeline
       {
-       agent any
-        tools
-        {
-            maven 'M3'
-        }
+       agent {
+
+            label 'maven'
+
+      }
+
 
         stages
         {

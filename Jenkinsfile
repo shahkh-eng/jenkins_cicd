@@ -39,7 +39,7 @@
               script {
                 openshift.withCluster() {
                   openshift.withProject('kuldeepfr99-dev') {
-                    openshift.newBuild("--name=sample-app-jenkins-new", "--image-stream=redhat-openjdk-18/openjdk18-openshift", "--binary=true")
+                    openshift.newBuild("--name=sample-app-jenkins-new", "--image-stream=openjdk18-openshift", "--binary=true")
                   }
                 }
               }

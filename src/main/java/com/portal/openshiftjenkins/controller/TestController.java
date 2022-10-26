@@ -8,6 +8,6 @@ public class TestController {
 
 	@GetMapping("/hello")
 	public String ping() {
-		return "Hello openshift Custom webhook testing New Change";
+		return "Hello World";
 	}
 }
